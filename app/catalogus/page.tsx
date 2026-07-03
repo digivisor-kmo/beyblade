@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
+import { getCatalog } from "@/lib/catalog";
+import { getUser } from "@/lib/auth";
 import { CatalogFilters } from "@/app/components/CatalogFilters";
 import { AddButton } from "@/app/components/AddButton";
 
@@ -31,20 +32,14 @@ export default async function CatalogPage({
   const lijn = str(sp.lijn);
   const categorie = str(sp.categorie);
   const type = str(sp.type);
-  const q = str(sp.q);
+  const q = str(sp.q).toLowerCase();
   const eu = str(sp.eu) === "1";
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Gecachete catalogus + (gededupliceerde) auth-check parallel.
+  const [catalog, user] = await Promise.all([getCatalog(), getUser()]);
   const authed = !!user;
 
-  const { data: categories } = await supabase
-    .from("part_categories")
-    .select("id, name")
-    .order("sort_order");
-  const catName = new Map((categories ?? []).map((c) => [c.id, c.name]));
+  const catName = new Map(catalog.categories.map((c) => [c.id, c.name]));
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8">
@@ -55,16 +50,23 @@ export default async function CatalogPage({
 
       <div className="mt-6">
         <CatalogFilters
-          categories={categories ?? []}
+          categories={catalog.categories}
           current={{ tab, lijn, categorie, type, q, eu }}
         />
       </div>
 
       <div className="mt-6">
         {tab === "producten" ? (
-          <ProductList lijn={lijn} q={q} eu={eu} authed={authed} />
+          <ProductList
+            catalog={catalog}
+            lijn={lijn}
+            q={q}
+            eu={eu}
+            authed={authed}
+          />
         ) : (
           <PartList
+            catalog={catalog}
             lijn={lijn}
             categorie={categorie}
             type={type}
@@ -78,7 +80,8 @@ export default async function CatalogPage({
   );
 }
 
-async function PartList({
+function PartList({
+  catalog,
   lijn,
   categorie,
   type,
@@ -86,6 +89,7 @@ async function PartList({
   authed,
   catName,
 }: {
+  catalog: import("@/lib/catalog").Catalog;
   lijn: string;
   categorie: string;
   type: string;
@@ -93,37 +97,28 @@ async function PartList({
   authed: boolean;
   catName: Map<string, string>;
 }) {
-  const supabase = await createClient();
-  let query = supabase
-    .from("parts")
-    .select("id, canonical_name, category, line, type, spin_direction")
-    .order("canonical_name");
-  if (lijn) query = query.eq("line", lijn as "BX" | "UX" | "CX");
-  if (categorie) query = query.eq("category", categorie);
-  if (type)
-    query = query.eq(
-      "type",
-      type as "attack" | "defense" | "stamina" | "balance",
-    );
-  if (q) query = query.ilike("canonical_name", `%${q}%`);
-  const { data: parts } = await query;
-
-  const [{ data: aliases }, { data: variants }] = await Promise.all([
-    supabase.from("part_aliases").select("part_id, name, brand"),
-    supabase.from("part_variants").select("part_id, colorway"),
-  ]);
   const aliasMap = new Map<string, string[]>();
-  (aliases ?? []).forEach((a) => {
+  catalog.aliases.forEach((a) => {
     if (a.brand !== "hasbro") return;
     aliasMap.set(a.part_id, [...(aliasMap.get(a.part_id) ?? []), a.name]);
   });
   const variantCount = new Map<string, number>();
-  (variants ?? []).forEach((v) =>
+  catalog.variants.forEach((v) =>
     variantCount.set(v.part_id, (variantCount.get(v.part_id) ?? 0) + 1),
   );
 
-  if (!parts || parts.length === 0) {
-    return <p className="text-sm text-[var(--color-muted)]">Geen onderdelen gevonden.</p>;
+  const parts = catalog.parts.filter(
+    (p) =>
+      (!lijn || p.line === lijn) &&
+      (!categorie || p.category === categorie) &&
+      (!type || p.type === type) &&
+      (!q || p.canonical_name.toLowerCase().includes(q)),
+  );
+
+  if (parts.length === 0) {
+    return (
+      <p className="text-sm text-[var(--color-muted)]">Geen onderdelen gevonden.</p>
+    );
   }
 
   return (
@@ -133,24 +128,20 @@ async function PartList({
           key={p.id}
           className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
         >
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="font-medium">{p.canonical_name}</p>
-              <div className="mt-1 flex flex-wrap gap-1">
-                <Badge>{catName.get(p.category) ?? p.category}</Badge>
-                <Badge>{p.line}</Badge>
-                {p.type && <Badge>{TYPE_LABEL[p.type]}</Badge>}
-                {(variantCount.get(p.id) ?? 0) > 1 && (
-                  <Badge>{variantCount.get(p.id)} kleuren</Badge>
-                )}
-              </div>
-              {aliasMap.get(p.id) && (
-                <p className="mt-1 text-xs text-[var(--color-muted)]">
-                  Hasbro: {aliasMap.get(p.id)!.join(", ")}
-                </p>
-              )}
-            </div>
+          <p className="font-medium">{p.canonical_name}</p>
+          <div className="mt-1 flex flex-wrap gap-1">
+            <Badge>{catName.get(p.category) ?? p.category}</Badge>
+            <Badge>{p.line}</Badge>
+            {p.type && <Badge>{TYPE_LABEL[p.type]}</Badge>}
+            {(variantCount.get(p.id) ?? 0) > 1 && (
+              <Badge>{variantCount.get(p.id)} kleuren</Badge>
+            )}
           </div>
+          {aliasMap.get(p.id) && (
+            <p className="mt-1 text-xs text-[var(--color-muted)]">
+              Hasbro: {aliasMap.get(p.id)!.join(", ")}
+            </p>
+          )}
           <div className="mt-3">
             <AddButton kind="part" id={p.id} authed={authed} />
           </div>
@@ -160,45 +151,40 @@ async function PartList({
   );
 }
 
-async function ProductList({
+function ProductList({
+  catalog,
   lijn,
   q,
   eu,
   authed,
 }: {
+  catalog: import("@/lib/catalog").Catalog;
   lijn: string;
   q: string;
   eu: boolean;
   authed: boolean;
 }) {
-  const supabase = await createClient();
-  let query = supabase
-    .from("products")
-    .select("id, canonical_name, product_code, brand, kind, line, eu_available")
-    .order("product_code");
-  if (lijn) query = query.eq("line", lijn as "BX" | "UX" | "CX");
-  if (eu) query = query.eq("eu_available", true);
-  if (q) query = query.ilike("canonical_name", `%${q}%`);
-  const { data: products } = await query;
-
-  const [{ data: pp }, { data: partsAll }, { data: variantsAll }] =
-    await Promise.all([
-      supabase.from("product_parts").select("product_id, part_id, variant_id, quantity"),
-      supabase.from("parts").select("id, canonical_name"),
-      supabase.from("part_variants").select("id, colorway"),
-    ]);
-  const partName = new Map((partsAll ?? []).map((p) => [p.id, p.canonical_name]));
-  const variantName = new Map((variantsAll ?? []).map((v) => [v.id, v.colorway]));
+  const partName = new Map(catalog.parts.map((p) => [p.id, p.canonical_name]));
+  const variantName = new Map(catalog.variants.map((v) => [v.id, v.colorway]));
   const contents = new Map<string, string[]>();
-  (pp ?? []).forEach((row) => {
+  catalog.productParts.forEach((row) => {
     const name = partName.get(row.part_id) ?? "?";
     const color = row.variant_id ? variantName.get(row.variant_id) : null;
     const label = color ? `${name} (${color})` : name;
     contents.set(row.product_id, [...(contents.get(row.product_id) ?? []), label]);
   });
 
-  if (!products || products.length === 0) {
-    return <p className="text-sm text-[var(--color-muted)]">Geen producten gevonden.</p>;
+  const products = catalog.products.filter(
+    (pr) =>
+      (!lijn || pr.line === lijn) &&
+      (!eu || pr.eu_available) &&
+      (!q || pr.canonical_name.toLowerCase().includes(q)),
+  );
+
+  if (products.length === 0) {
+    return (
+      <p className="text-sm text-[var(--color-muted)]">Geen producten gevonden.</p>
+    );
   }
 
   return (

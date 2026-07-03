@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/auth";
+import { getCatalog } from "@/lib/catalog";
 import { QuantityControls } from "@/app/components/QuantityControls";
 
 const TYPE_LABEL: Record<string, string> = {
@@ -11,26 +13,21 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 export default async function CollectionPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUser();
   if (!user) redirect("/login");
 
-  const { data: owned } = await supabase
-    .from("owned_parts")
-    .select("id, part_id, variant_id, quantity, condition");
+  const supabase = await createClient();
+  // Alleen de eigen collectie via de sessie-client; lookups uit de cache.
+  const [{ data: owned }, catalog] = await Promise.all([
+    supabase
+      .from("owned_parts")
+      .select("id, part_id, variant_id, quantity, condition"),
+    getCatalog(),
+  ]);
 
-  const [{ data: parts }, { data: variants }, { data: categories }] =
-    await Promise.all([
-      supabase.from("parts").select("id, canonical_name, category, line, type"),
-      supabase.from("part_variants").select("id, colorway"),
-      supabase.from("part_categories").select("id, name, sort_order").order("sort_order"),
-    ]);
-
-  const partMap = new Map((parts ?? []).map((p) => [p.id, p]));
-  const variantName = new Map((variants ?? []).map((v) => [v.id, v.colorway]));
-  const catName = new Map((categories ?? []).map((c) => [c.id, c.name]));
+  const { parts, variants, categories } = catalog;
+  const partMap = new Map(parts.map((p) => [p.id, p]));
+  const variantName = new Map(variants.map((v) => [v.id, v.colorway]));
 
   const rows = (owned ?? [])
     .map((o) => {
