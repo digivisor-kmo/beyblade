@@ -30,7 +30,7 @@ export default async function CollectionPage() {
         id: o.id,
         quantity: o.quantity,
         condition: o.condition,
-        name: part.canonical_name,
+        name: part.display_name,
         category: part.category,
         line: part.line,
         type: part.type as string | null,

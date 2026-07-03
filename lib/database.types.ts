@@ -135,6 +135,7 @@ export type Database = {
         Row: {
           id: string;
           canonical_name: string;
+          hasbro_name: string | null;
           product_code: string | null;
           brand: Brand;
           kind: ProductKind;
@@ -151,6 +152,7 @@ export type Database = {
         Insert: {
           id?: string;
           canonical_name: string;
+          hasbro_name?: string | null;
           product_code?: string | null;
           brand: Brand;
           kind?: ProductKind;

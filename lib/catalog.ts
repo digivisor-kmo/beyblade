@@ -32,7 +32,7 @@ async function fetchCatalog() {
       supabase
         .from("products")
         .select(
-          "id, canonical_name, product_code, brand, kind, line, eu_available, image_url",
+          "id, canonical_name, hasbro_name, product_code, brand, kind, line, eu_available, image_url",
         )
         .order("product_code"),
       supabase
@@ -50,9 +50,23 @@ async function fetchCatalog() {
         .order("sort_order"),
     ]);
 
+  // Hasbro-alias per part, zodat we overal de EU-naam als weergavenaam kunnen
+  // tonen. canonical_name (Takara Tomy) blijft beschikbaar als referentie.
+  const hasbroByPart = new Map<string, string>();
+  (aliases.data ?? []).forEach((a) => {
+    if (a.brand === "hasbro" && !hasbroByPart.has(a.part_id)) {
+      hasbroByPart.set(a.part_id, a.name);
+    }
+  });
+  const partsEnriched = (parts.data ?? []).map((p) => ({
+    ...p,
+    hasbro_name: hasbroByPart.get(p.id) ?? null,
+    display_name: hasbroByPart.get(p.id) ?? p.canonical_name,
+  }));
+
   return {
     categories: categories.data ?? [],
-    parts: parts.data ?? [],
+    parts: partsEnriched,
     products: products.data ?? [],
     productParts: productParts.data ?? [],
     aliases: aliases.data ?? [],
@@ -62,7 +76,7 @@ async function fetchCatalog() {
   };
 }
 
-export const getCatalog = unstable_cache(fetchCatalog, ["catalog-v3"], {
+export const getCatalog = unstable_cache(fetchCatalog, ["catalog-v4"], {
   revalidate: 3600,
   tags: ["catalog"],
 });

@@ -119,11 +119,6 @@ function PartList({
   ownedPartIds: Set<string>;
   catName: Map<string, string>;
 }) {
-  const aliasMap = new Map<string, string[]>();
-  catalog.aliases.forEach((a) => {
-    if (a.brand !== "hasbro") return;
-    aliasMap.set(a.part_id, [...(aliasMap.get(a.part_id) ?? []), a.name]);
-  });
   const variantCount = new Map<string, number>();
   catalog.variants.forEach((v) =>
     variantCount.set(v.part_id, (variantCount.get(v.part_id) ?? 0) + 1),
@@ -150,9 +145,14 @@ function PartList({
               owned ? "ring-1 ring-[var(--color-stamina)]/40" : ""
             }`}
           >
-            <Thumb src={p.image_url} alt={p.canonical_name} className="aspect-square" />
+            <Thumb src={p.image_url} alt={p.display_name} className="aspect-square" />
             <div className="mt-2 flex-1">
-              <p className="font-semibold leading-tight">{p.canonical_name}</p>
+              <p className="font-semibold leading-tight">{p.display_name}</p>
+              {p.hasbro_name && p.hasbro_name !== p.canonical_name && (
+                <p className="text-xs text-[var(--color-muted)]">
+                  TT: {p.canonical_name}
+                </p>
+              )}
               <div className="mt-1.5 flex flex-wrap gap-1">
                 {owned && <OwnedBadge>In bezit</OwnedBadge>}
                 <Badge>{catName.get(p.category) ?? p.category}</Badge>
@@ -162,11 +162,6 @@ function PartList({
                   <Badge>{variantCount.get(p.id)} kleuren</Badge>
                 )}
               </div>
-              {aliasMap.get(p.id) && (
-                <p className="mt-1.5 text-xs text-[var(--color-muted)]">
-                  Hasbro: {aliasMap.get(p.id)!.join(", ")}
-                </p>
-              )}
             </div>
             <div className="mt-3">
               <AddToCollection kind="part" id={p.id} authed={authed} />
@@ -193,7 +188,7 @@ function ProductList({
   authed: boolean;
   ownedPartIds: Set<string>;
 }) {
-  const partName = new Map(catalog.parts.map((p) => [p.id, p.canonical_name]));
+  const partName = new Map(catalog.parts.map((p) => [p.id, p.display_name]));
   const variantName = new Map(catalog.variants.map((v) => [v.id, v.colorway]));
   const contents = new Map<string, string[]>();
   const partIdsByProduct = new Map<string, string[]>();
@@ -237,7 +232,9 @@ function ProductList({
                 className="h-24 w-24 shrink-0"
               />
               <div className="min-w-0 flex-1">
-                <p className="font-semibold leading-tight">{pr.canonical_name}</p>
+                <p className="font-semibold leading-tight">
+                  {pr.hasbro_name ?? pr.canonical_name}
+                </p>
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   {authed && ownedCount > 0 && (
                     <OwnedBadge>

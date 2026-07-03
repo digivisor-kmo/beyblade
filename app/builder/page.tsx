@@ -42,7 +42,7 @@ export default async function BuilderPage() {
       if (!p) return null;
       return {
         partId: p.id,
-        name: p.canonical_name,
+        name: p.display_name,
         category: p.category,
         line: p.line,
         image: p.image_url,
@@ -60,7 +60,7 @@ export default async function BuilderPage() {
     if (!p) return;
     partsByBuild.set(bp.build_id, [
       ...(partsByBuild.get(bp.build_id) ?? []),
-      { name: p.canonical_name, image: p.image_url },
+      { name: p.display_name, image: p.image_url },
     ]);
   });
 
