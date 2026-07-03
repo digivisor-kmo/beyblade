@@ -191,7 +191,17 @@ function ProductList({
   ownedPartIds: Set<string>;
 }) {
   const partName = new Map(catalog.parts.map((p) => [p.id, p.display_name]));
+  const partImg = new Map(catalog.parts.map((p) => [p.id, p.image_url]));
+  const partCat = new Map(catalog.parts.map((p) => [p.id, p.category]));
   const variantName = new Map(catalog.variants.map((v) => [v.id, v.colorway]));
+  // Volgorde van "hero"-onderdeel voor een product-thumbnail zonder eigen foto.
+  const HERO = [
+    "blade",
+    "main_blade",
+    "ratchet_integrated_blade",
+    "metal_blade",
+    "lock_chip",
+  ];
   const contents = new Map<string, string[]>();
   const partIdsByProduct = new Map<string, string[]>();
   catalog.productParts.forEach((row) => {
@@ -204,6 +214,15 @@ function ProductList({
       row.part_id,
     ]);
   });
+  const heroImage = (productId: string, own: string | null) => {
+    if (own) return own;
+    const ids = partIdsByProduct.get(productId) ?? [];
+    for (const cat of HERO) {
+      const hit = ids.find((id) => partCat.get(id) === cat && partImg.get(id));
+      if (hit) return partImg.get(hit) ?? null;
+    }
+    return null;
+  };
 
   const products = catalog.products.filter(
     (pr) =>
@@ -231,8 +250,9 @@ function ProductList({
           >
             <div className="flex gap-3">
               <Thumb
-                src={pr.image_url}
+                src={heroImage(pr.id, pr.image_url)}
                 alt={pr.canonical_name}
+                width={200}
                 className="h-24 w-24 shrink-0"
               />
               <div className="min-w-0 flex-1">
