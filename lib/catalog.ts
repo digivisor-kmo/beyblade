@@ -9,8 +9,16 @@ import { createPublicClient } from "@/lib/supabase/public";
 
 async function fetchCatalog() {
   const supabase = createPublicClient();
-  const [categories, parts, products, productParts, aliases, variants] =
-    await Promise.all([
+  const [
+    categories,
+    parts,
+    products,
+    productParts,
+    aliases,
+    variants,
+    templates,
+    templateSlots,
+  ] = await Promise.all([
       supabase
         .from("part_categories")
         .select("id, name, sort_order")
@@ -32,6 +40,14 @@ async function fetchCatalog() {
         .select("product_id, part_id, variant_id, quantity"),
       supabase.from("part_aliases").select("part_id, name, brand"),
       supabase.from("part_variants").select("id, part_id, colorway"),
+      supabase
+        .from("build_templates")
+        .select("id, name, line, subtype, allows_integrated_bit, sort_order")
+        .order("sort_order"),
+      supabase
+        .from("build_template_slots")
+        .select("template_id, category, min_quantity, max_quantity, sort_order")
+        .order("sort_order"),
     ]);
 
   return {
@@ -41,6 +57,8 @@ async function fetchCatalog() {
     productParts: productParts.data ?? [],
     aliases: aliases.data ?? [],
     variants: variants.data ?? [],
+    templates: templates.data ?? [],
+    templateSlots: templateSlots.data ?? [],
   };
 }
 

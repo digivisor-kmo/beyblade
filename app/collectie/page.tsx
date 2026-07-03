@@ -6,13 +6,6 @@ import { getCatalog } from "@/lib/catalog";
 import { QuantityControls } from "@/app/components/QuantityControls";
 import { Thumb } from "@/app/components/ui";
 
-const TYPE_LABEL: Record<string, string> = {
-  attack: "Attack",
-  defense: "Defense",
-  stamina: "Stamina",
-  balance: "Balance",
-};
-
 export default async function CollectionPage() {
   const user = await getUser();
   if (!user) redirect("/login");
@@ -48,15 +41,10 @@ export default async function CollectionPage() {
     .filter((r): r is NonNullable<typeof r> => r !== null);
 
   const totalDistinct = rows.length;
-  const totalQty = rows.reduce((s, r) => s + r.quantity, 0);
   const byCategory = new Map<string, number>();
-  const byLine = new Map<string, number>();
-  const byType = new Map<string, number>();
-  rows.forEach((r) => {
-    byCategory.set(r.category, (byCategory.get(r.category) ?? 0) + r.quantity);
-    byLine.set(r.line, (byLine.get(r.line) ?? 0) + r.quantity);
-    if (r.type) byType.set(r.type, (byType.get(r.type) ?? 0) + r.quantity);
-  });
+  rows.forEach((r) =>
+    byCategory.set(r.category, (byCategory.get(r.category) ?? 0) + r.quantity),
+  );
 
   const grouped = categories
     .map((c) => ({ cat: c, items: rows.filter((r) => r.category === c.id) }))
@@ -82,27 +70,7 @@ export default async function CollectionPage() {
         </div>
       ) : (
         <>
-          <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label="Onderdelen" value={totalDistinct} />
-            <Stat label="Totaal aantal" value={totalQty} />
-            <Stat
-              label="Per lijn"
-              value={
-                [...byLine.entries()].map(([k, v]) => `${k} ${v}`).join(" · ") ||
-                "-"
-              }
-            />
-            <Stat
-              label="Per type"
-              value={
-                [...byType.entries()]
-                  .map(([k, v]) => `${TYPE_LABEL[k] ?? k} ${v}`)
-                  .join(" · ") || "-"
-              }
-            />
-          </section>
-
-          <div className="mt-8 space-y-6">
+          <div className="mt-6 space-y-6">
             {grouped.map((g) => (
               <section key={g.cat.id}>
                 <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
@@ -140,14 +108,5 @@ export default async function CollectionPage() {
         </>
       )}
     </main>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="card p-3">
-      <p className="text-xs text-[var(--color-muted)]">{label}</p>
-      <p className="mt-1 text-sm font-semibold">{value}</p>
-    </div>
   );
 }
