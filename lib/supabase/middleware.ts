@@ -27,9 +27,10 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // Belangrijk: geen code tussen createServerClient en getUser(), anders kunnen
-  // sessies willekeurig uitloggen.
-  await supabase.auth.getUser();
+  // getSession leest de sessie uit de cookie en ververst het token alleen als
+  // het verlopen is (netwerk enkel dan). Scheelt een netwerk-call bij elke
+  // navigatie/prefetch t.o.v. getUser (dat altijd bij de server valideert).
+  await supabase.auth.getSession();
 
   return supabaseResponse;
 }

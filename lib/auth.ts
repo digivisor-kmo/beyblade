@@ -1,13 +1,14 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
-// Huidige ingelogde user (of null). Gewrapt in React cache() zodat meerdere
-// aanroepen binnen dezelfde request (bv. NavBar + pagina) samen 1 auth-call
-// doen in plaats van elk een eigen netwerkcall.
+// Huidige ingelogde user (of null). Leest de sessie LOKAAL uit de cookie
+// (getSession) i.p.v. een netwerk-validatie (getUser) bij elke navigatie.
+// Veilig voor UI-beslissingen: de echte beveiliging zit in RLS op de database.
+// Gewrapt in cache() zodat NavBar + pagina samen 1 keer lezen per request.
 export const getUser = cache(async () => {
   const supabase = await createClient();
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user;
+    data: { session },
+  } = await supabase.auth.getSession();
+  return session?.user ?? null;
 });
