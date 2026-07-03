@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/collectie", label: "Mijn collectie" },
   { href: "/catalogus", label: "Catalogus" },
   { href: "/builder", label: "Bouwer" },
+  { href: "/meta", label: "Meta" },
 ];
 
 export function NavLinks() {

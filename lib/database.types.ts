@@ -266,6 +266,7 @@ export type Database = {
           kind: BuildKind;
           source: string | null;
           notes: string | null;
+          meta_date: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -277,6 +278,7 @@ export type Database = {
           kind?: BuildKind;
           source?: string | null;
           notes?: string | null;
+          meta_date?: string | null;
           created_at?: string;
           updated_at?: string;
         };
