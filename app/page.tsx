@@ -8,11 +8,19 @@ async function getCatalogStatus() {
   }
   try {
     const supabase = await createClient();
-    const { count, error } = await supabase
-      .from("build_templates")
-      .select("*", { count: "exact", head: true });
-    if (error) return { state: "error" as const, message: error.message };
-    return { state: "ok" as const, templates: count ?? 0 };
+    const [templates, parts, products] = await Promise.all([
+      supabase.from("build_templates").select("*", { count: "exact", head: true }),
+      supabase.from("parts").select("*", { count: "exact", head: true }),
+      supabase.from("products").select("*", { count: "exact", head: true }),
+    ]);
+    const err = templates.error || parts.error || products.error;
+    if (err) return { state: "error" as const, message: err.message };
+    return {
+      state: "ok" as const,
+      templates: templates.count ?? 0,
+      parts: parts.count ?? 0,
+      products: products.count ?? 0,
+    };
   } catch (e) {
     return {
       state: "error" as const,
@@ -60,6 +68,7 @@ export default async function Home() {
           <div className="mt-3 text-sm">
             <p className="text-emerald-400">Verbonden.</p>
             <p className="mt-1 text-[var(--color-muted)]">
+              {status.parts} onderdelen, {status.products} producten en{" "}
               {status.templates} bouwsjablonen in de catalogus.
             </p>
           </div>

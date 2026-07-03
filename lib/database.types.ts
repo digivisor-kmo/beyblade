@@ -136,15 +136,42 @@ export interface Database {
           id: string;
           product_id: string;
           part_id: string;
+          variant_id: string | null;
           quantity: number;
         };
         Insert: {
           id?: string;
           product_id: string;
           part_id: string;
+          variant_id?: string | null;
           quantity?: number;
         };
         Update: Partial<Database["public"]["Tables"]["product_parts"]["Insert"]>;
+      };
+      part_variants: {
+        Row: {
+          id: string;
+          part_id: string;
+          colorway: string;
+          is_default: boolean;
+          image_url: string | null;
+          wiki_url: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          part_id: string;
+          colorway: string;
+          is_default?: boolean;
+          image_url?: string | null;
+          wiki_url?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["part_variants"]["Insert"]>;
       };
       build_templates: {
         Row: {
@@ -193,6 +220,7 @@ export interface Database {
           id: string;
           user_id: string;
           part_id: string;
+          variant_id: string | null;
           quantity: number;
           condition: PartCondition;
           notes: string | null;
@@ -203,6 +231,7 @@ export interface Database {
           id?: string;
           user_id: string;
           part_id: string;
+          variant_id?: string | null;
           quantity?: number;
           condition?: PartCondition;
           notes?: string | null;
