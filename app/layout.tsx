@@ -15,6 +15,10 @@ export const metadata: Metadata = {
   },
 };
 
+// Draai de serverfuncties in Frankfurt: dicht bij de EU-gebruiker en bij de
+// Supabase-database (eu-west-1). Voorkomt trage transatlantische hops.
+export const preferredRegion = "fra1";
+
 export const viewport: Viewport = {
   themeColor: "#0b0f1a",
   width: "device-width",
