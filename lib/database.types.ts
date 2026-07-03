@@ -1,8 +1,9 @@
 // Database-types voor Supabase.
 //
-// Handgeschreven om aan te sluiten op de migraties in supabase/migrations.
-// Later te regenereren met: npm run db:types
-// (supabase gen types typescript --local > lib/database.types.ts)
+// Handgeschreven in de canonieke vorm die supabase-js verwacht (met
+// Relationships en CompositeTypes), zodat query-resultaten correct getypeerd
+// zijn. Sluit aan op de migraties in supabase/migrations.
+// Later te regenereren met: supabase gen types typescript --local
 
 export type Json =
   | string
@@ -26,7 +27,7 @@ export type ProductKind =
 export type BuildKind = "custom" | "competitive" | "deck_slot";
 export type PartCondition = "new" | "like_new" | "used" | "worn";
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       part_categories: {
@@ -42,7 +43,13 @@ export interface Database {
           description?: string | null;
           sort_order?: number;
         };
-        Update: Partial<Database["public"]["Tables"]["part_categories"]["Insert"]>;
+        Update: {
+          id?: string;
+          name?: string;
+          description?: string | null;
+          sort_order?: number;
+        };
+        Relationships: [];
       };
       parts: {
         Row: {
@@ -78,6 +85,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["parts"]["Insert"]>;
+        Relationships: [];
       };
       part_aliases: {
         Row: {
@@ -95,6 +103,33 @@ export interface Database {
           region?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["part_aliases"]["Insert"]>;
+        Relationships: [];
+      };
+      part_variants: {
+        Row: {
+          id: string;
+          part_id: string;
+          colorway: string;
+          is_default: boolean;
+          image_url: string | null;
+          wiki_url: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          part_id: string;
+          colorway: string;
+          is_default?: boolean;
+          image_url?: string | null;
+          wiki_url?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["part_variants"]["Insert"]>;
+        Relationships: [];
       };
       products: {
         Row: {
@@ -130,6 +165,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["products"]["Insert"]>;
+        Relationships: [];
       };
       product_parts: {
         Row: {
@@ -147,31 +183,7 @@ export interface Database {
           quantity?: number;
         };
         Update: Partial<Database["public"]["Tables"]["product_parts"]["Insert"]>;
-      };
-      part_variants: {
-        Row: {
-          id: string;
-          part_id: string;
-          colorway: string;
-          is_default: boolean;
-          image_url: string | null;
-          wiki_url: string | null;
-          notes: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          part_id: string;
-          colorway: string;
-          is_default?: boolean;
-          image_url?: string | null;
-          wiki_url?: string | null;
-          notes?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["part_variants"]["Insert"]>;
+        Relationships: [];
       };
       build_templates: {
         Row: {
@@ -193,6 +205,7 @@ export interface Database {
           sort_order?: number;
         };
         Update: Partial<Database["public"]["Tables"]["build_templates"]["Insert"]>;
+        Relationships: [];
       };
       build_template_slots: {
         Row: {
@@ -214,6 +227,7 @@ export interface Database {
         Update: Partial<
           Database["public"]["Tables"]["build_template_slots"]["Insert"]
         >;
+        Relationships: [];
       };
       owned_parts: {
         Row: {
@@ -239,6 +253,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["owned_parts"]["Insert"]>;
+        Relationships: [];
       };
       builds: {
         Row: {
@@ -264,6 +279,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["builds"]["Insert"]>;
+        Relationships: [];
       };
       build_parts: {
         Row: {
@@ -283,6 +299,7 @@ export interface Database {
           notes?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["build_parts"]["Insert"]>;
+        Relationships: [];
       };
       decks: {
         Row: {
@@ -312,10 +329,25 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["decks"]["Insert"]>;
+        Relationships: [];
       };
     };
-    Views: Record<never, never>;
-    Functions: Record<never, never>;
+    Views: { [_ in never]: never };
+    Functions: {
+      add_owned_part: {
+        Args: {
+          p_part_id: string;
+          p_variant_id?: string | null;
+          p_condition?: PartCondition;
+          p_qty?: number;
+        };
+        Returns: undefined;
+      };
+      add_product_to_collection: {
+        Args: { p_product_id: string; p_condition?: PartCondition };
+        Returns: undefined;
+      };
+    };
     Enums: {
       product_line: ProductLine;
       part_type: PartType;
@@ -325,5 +357,6 @@ export interface Database {
       build_kind: BuildKind;
       part_condition: PartCondition;
     };
+    CompositeTypes: { [_ in never]: never };
   };
-}
+};

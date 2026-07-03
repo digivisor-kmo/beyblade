@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { NavBar } from "@/app/components/NavBar";
 import { ServiceWorkerRegister } from "@/app/components/ServiceWorkerRegister";
 
 export const metadata: Metadata = {
@@ -27,6 +28,7 @@ export default function RootLayout({
   return (
     <html lang="nl">
       <body className="min-h-dvh">
+        <NavBar />
         {children}
         <ServiceWorkerRegister />
       </body>
