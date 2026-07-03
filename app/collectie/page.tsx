@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
 import { getCatalog } from "@/lib/catalog";
-import { QuantityControls } from "@/app/components/QuantityControls";
+import { QtyControls } from "@/app/components/QtyControls";
 import { Thumb } from "@/app/components/ui";
 
 export default async function CollectionPage() {
@@ -88,6 +88,7 @@ export default async function CollectionPage() {
                       <Thumb
                         src={r.image}
                         alt={r.name}
+                        width={96}
                         className="h-14 w-14 shrink-0"
                       />
                       <div className="min-w-0 flex-1">
@@ -98,7 +99,7 @@ export default async function CollectionPage() {
                           {r.condition !== "new" ? ` · ${r.condition}` : ""}
                         </p>
                       </div>
-                      <QuantityControls ownedId={r.id} quantity={r.quantity} />
+                      <QtyControls ownedId={r.id} quantity={r.quantity} />
                     </li>
                   ))}
                 </ul>

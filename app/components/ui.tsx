@@ -33,16 +33,31 @@ export function Badge({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Vraag een kleinere wiki-thumbnail op i.p.v. de volledige 320px. Scheelt fors
+// aan bytes op pagina's met veel afbeeldingen.
+function sized(url: string, width: number): string {
+  if (!url.includes("static.wikia")) return url;
+  if (/scale-to-width-down\/\d+/.test(url)) {
+    return url.replace(/scale-to-width-down\/\d+/, `scale-to-width-down/${width}`);
+  }
+  return url.replace(
+    /\/revision\/latest(\?|$)/,
+    `/revision/latest/scale-to-width-down/${width}$1`,
+  );
+}
+
 // Afbeelding met nette fallback. Plain <img> zodat externe wiki-URLs en
-// redirects zonder configuratie werken.
+// redirects zonder configuratie werken. Lazy + async decoding voor scroll.
 export function Thumb({
   src,
   alt,
   className = "",
+  width = 160,
 }: {
   src: string | null;
   alt: string;
   className?: string;
+  width?: number;
 }) {
   if (!src) {
     return (
@@ -58,9 +73,10 @@ export function Thumb({
     <div className={`thumb overflow-hidden ${className}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={src}
+        src={sized(src, width)}
         alt={alt}
         loading="lazy"
+        decoding="async"
         className="h-full w-full object-contain"
       />
     </div>

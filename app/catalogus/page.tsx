@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCatalog, type Catalog } from "@/lib/catalog";
 import { getUser } from "@/lib/auth";
 import { CatalogFilters } from "@/app/components/CatalogFilters";
-import { AddButton } from "@/app/components/AddButton";
+import { AddToCollection } from "@/app/components/AddToCollection";
 import { Badge, TypeBadge, Thumb } from "@/app/components/ui";
 
 type SP = { [key: string]: string | string[] | undefined };
@@ -169,7 +169,7 @@ function PartList({
               )}
             </div>
             <div className="mt-3">
-              <AddButton kind="part" id={p.id} authed={authed} />
+              <AddToCollection kind="part" id={p.id} authed={authed} />
             </div>
           </li>
         );
@@ -256,7 +256,7 @@ function ProductList({
               ))}
             </ul>
             <div className="mt-3">
-              <AddButton
+              <AddToCollection
                 kind="product"
                 id={pr.id}
                 authed={authed}

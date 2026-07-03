@@ -5,6 +5,22 @@ import { createClient } from "@/lib/supabase/server";
 
 type Result = { ok: true } | { error: string };
 
+// Form-varianten: bruikbaar als <form action=...> zonder client-JS per kaart.
+export async function addPartForm(formData: FormData): Promise<void> {
+  await addPart(String(formData.get("partId")));
+}
+
+export async function addProductForm(formData: FormData): Promise<void> {
+  await addProduct(String(formData.get("productId")));
+}
+
+export async function setQtyForm(formData: FormData): Promise<void> {
+  await setOwnedQuantity(
+    String(formData.get("ownedId")),
+    Number(formData.get("quantity")),
+  );
+}
+
 // Voeg alle onderdelen van een product toe aan de collectie.
 export async function addProduct(productId: string): Promise<Result> {
   const supabase = await createClient();
