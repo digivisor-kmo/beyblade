@@ -42,11 +42,11 @@ export function CatalogFilters({
   };
 
   const selectClass =
-    "rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-sm";
+    "rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--color-accent)]";
 
   return (
     <div className="space-y-3">
-      <div className="inline-flex rounded-lg border border-[var(--color-border)] p-0.5 text-sm">
+      <div className="inline-flex rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1 text-sm">
         {[
           { v: "producten", l: "Producten" },
           { v: "onderdelen", l: "Onderdelen" },
@@ -54,11 +54,20 @@ export function CatalogFilters({
           <button
             key={t.v}
             onClick={() => update({ tab: t.v })}
-            className={`rounded-md px-3 py-1 ${
+            className={`font-display rounded-lg px-4 py-1.5 text-xs font-bold tracking-wide transition ${
               current.tab === t.v
-                ? "bg-[var(--color-accent)] text-white"
-                : "text-[var(--color-muted)]"
+                ? "text-white"
+                : "text-[var(--color-muted)] hover:text-[var(--color-text)]"
             }`}
+            style={
+              current.tab === t.v
+                ? {
+                    background:
+                      "linear-gradient(180deg, var(--color-accent), var(--color-accent-hover))",
+                    boxShadow: "0 6px 16px -8px rgba(61,123,255,0.7)",
+                  }
+                : undefined
+            }
           >
             {t.l}
           </button>

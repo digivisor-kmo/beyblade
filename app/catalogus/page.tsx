@@ -53,7 +53,9 @@ export default async function CatalogPage({
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="text-2xl font-bold">Catalogus</h1>
+      <h1 className="font-display text-2xl font-extrabold tracking-wide">
+        Catalogus
+      </h1>
       <p className="mt-1 text-sm text-[var(--color-muted)]">
         Bekijk alle onderdelen en producten, en voeg toe aan je collectie.
       </p>

@@ -66,7 +66,9 @@ export default async function BuilderPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="text-2xl font-bold">Bouwer</h1>
+      <h1 className="font-display text-2xl font-extrabold tracking-wide">
+        Bouwer
+      </h1>
       <p className="mt-1 text-sm text-[var(--color-muted)]">
         Stel een combo samen uit je eigen onderdelen. De bouwer controleert live
         of je bey compleet is.

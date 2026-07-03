@@ -52,7 +52,9 @@ export default async function CollectionPage() {
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8">
-      <h1 className="text-2xl font-bold">Mijn collectie</h1>
+      <h1 className="font-display text-2xl font-extrabold tracking-wide">
+        Mijn collectie
+      </h1>
 
       {totalDistinct === 0 ? (
         <div className="card mt-6 p-10 text-center">
