@@ -62,7 +62,7 @@ async function fetchCatalog() {
   };
 }
 
-export const getCatalog = unstable_cache(fetchCatalog, ["catalog-v2"], {
+export const getCatalog = unstable_cache(fetchCatalog, ["catalog-v3"], {
   revalidate: 3600,
   tags: ["catalog"],
 });

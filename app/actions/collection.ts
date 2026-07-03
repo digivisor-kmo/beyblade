@@ -18,6 +18,7 @@ export async function addProduct(productId: string): Promise<Result> {
   });
   if (error) return { error: error.message };
   revalidatePath("/collectie");
+  revalidatePath("/catalogus");
   return { ok: true };
 }
 
@@ -38,6 +39,7 @@ export async function addPart(
   });
   if (error) return { error: error.message };
   revalidatePath("/collectie");
+  revalidatePath("/catalogus");
   return { ok: true };
 }
 

@@ -1,3 +1,4 @@
+import { createClient } from "@/lib/supabase/server";
 import { getCatalog, type Catalog } from "@/lib/catalog";
 import { getUser } from "@/lib/auth";
 import { CatalogFilters } from "@/app/components/CatalogFilters";
@@ -5,6 +6,22 @@ import { AddButton } from "@/app/components/AddButton";
 import { Badge, TypeBadge, Thumb } from "@/app/components/ui";
 
 type SP = { [key: string]: string | string[] | undefined };
+
+function OwnedBadge({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      className="rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+      style={{
+        color: "var(--color-stamina)",
+        borderColor: "var(--color-stamina)",
+        backgroundColor:
+          "color-mix(in srgb, var(--color-stamina) 14%, transparent)",
+      }}
+    >
+      {children}
+    </span>
+  );
+}
 
 export default async function CatalogPage({
   searchParams,
@@ -23,6 +40,15 @@ export default async function CatalogPage({
 
   const [catalog, user] = await Promise.all([getCatalog(), getUser()]);
   const authed = !!user;
+
+  // Welke onderdelen bezit de gebruiker (voor de "in bezit"-aanduiding).
+  let ownedPartIds = new Set<string>();
+  if (authed) {
+    const supabase = await createClient();
+    const { data: owned } = await supabase.from("owned_parts").select("part_id");
+    ownedPartIds = new Set((owned ?? []).map((o) => o.part_id));
+  }
+
   const catName = new Map(catalog.categories.map((c) => [c.id, c.name]));
 
   return (
@@ -41,7 +67,14 @@ export default async function CatalogPage({
 
       <div className="mt-6">
         {tab === "producten" ? (
-          <ProductList catalog={catalog} lijn={lijn} q={q} eu={eu} authed={authed} />
+          <ProductList
+            catalog={catalog}
+            lijn={lijn}
+            q={q}
+            eu={eu}
+            authed={authed}
+            ownedPartIds={ownedPartIds}
+          />
         ) : (
           <PartList
             catalog={catalog}
@@ -50,6 +83,7 @@ export default async function CatalogPage({
             type={type}
             q={q}
             authed={authed}
+            ownedPartIds={ownedPartIds}
             catName={catName}
           />
         )}
@@ -73,6 +107,7 @@ function PartList({
   type,
   q,
   authed,
+  ownedPartIds,
   catName,
 }: {
   catalog: Catalog;
@@ -81,6 +116,7 @@ function PartList({
   type: string;
   q: string;
   authed: boolean;
+  ownedPartIds: Set<string>;
   catName: Map<string, string>;
 }) {
   const aliasMap = new Map<string, string[]>();
@@ -105,30 +141,39 @@ function PartList({
 
   return (
     <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-      {parts.map((p) => (
-        <li key={p.id} className="card card-hover flex flex-col p-3">
-          <Thumb src={p.image_url} alt={p.canonical_name} className="aspect-square" />
-          <div className="mt-2 flex-1">
-            <p className="font-semibold leading-tight">{p.canonical_name}</p>
-            <div className="mt-1.5 flex flex-wrap gap-1">
-              <Badge>{catName.get(p.category) ?? p.category}</Badge>
-              <Badge>{p.line}</Badge>
-              <TypeBadge type={p.type} />
-              {(variantCount.get(p.id) ?? 0) > 1 && (
-                <Badge>{variantCount.get(p.id)} kleuren</Badge>
+      {parts.map((p) => {
+        const owned = ownedPartIds.has(p.id);
+        return (
+          <li
+            key={p.id}
+            className={`card card-hover flex flex-col p-3 ${
+              owned ? "ring-1 ring-[var(--color-stamina)]/40" : ""
+            }`}
+          >
+            <Thumb src={p.image_url} alt={p.canonical_name} className="aspect-square" />
+            <div className="mt-2 flex-1">
+              <p className="font-semibold leading-tight">{p.canonical_name}</p>
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {owned && <OwnedBadge>In bezit</OwnedBadge>}
+                <Badge>{catName.get(p.category) ?? p.category}</Badge>
+                <Badge>{p.line}</Badge>
+                <TypeBadge type={p.type} />
+                {(variantCount.get(p.id) ?? 0) > 1 && (
+                  <Badge>{variantCount.get(p.id)} kleuren</Badge>
+                )}
+              </div>
+              {aliasMap.get(p.id) && (
+                <p className="mt-1.5 text-xs text-[var(--color-muted)]">
+                  Hasbro: {aliasMap.get(p.id)!.join(", ")}
+                </p>
               )}
             </div>
-            {aliasMap.get(p.id) && (
-              <p className="mt-1.5 text-xs text-[var(--color-muted)]">
-                Hasbro: {aliasMap.get(p.id)!.join(", ")}
-              </p>
-            )}
-          </div>
-          <div className="mt-3">
-            <AddButton kind="part" id={p.id} authed={authed} />
-          </div>
-        </li>
-      ))}
+            <div className="mt-3">
+              <AddButton kind="part" id={p.id} authed={authed} />
+            </div>
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -139,21 +184,28 @@ function ProductList({
   q,
   eu,
   authed,
+  ownedPartIds,
 }: {
   catalog: Catalog;
   lijn: string;
   q: string;
   eu: boolean;
   authed: boolean;
+  ownedPartIds: Set<string>;
 }) {
   const partName = new Map(catalog.parts.map((p) => [p.id, p.canonical_name]));
   const variantName = new Map(catalog.variants.map((v) => [v.id, v.colorway]));
   const contents = new Map<string, string[]>();
+  const partIdsByProduct = new Map<string, string[]>();
   catalog.productParts.forEach((row) => {
     const name = partName.get(row.part_id) ?? "?";
     const color = row.variant_id ? variantName.get(row.variant_id) : null;
     const label = color ? `${name} (${color})` : name;
     contents.set(row.product_id, [...(contents.get(row.product_id) ?? []), label]);
+    partIdsByProduct.set(row.product_id, [
+      ...(partIdsByProduct.get(row.product_id) ?? []),
+      row.part_id,
+    ]);
   });
 
   const products = catalog.products.filter(
@@ -167,38 +219,53 @@ function ProductList({
 
   return (
     <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {products.map((pr) => (
-        <li key={pr.id} className="card card-hover flex flex-col p-4">
-          <div className="flex gap-3">
-            <Thumb
-              src={pr.image_url}
-              alt={pr.canonical_name}
-              className="h-24 w-24 shrink-0"
-            />
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold leading-tight">{pr.canonical_name}</p>
-              <div className="mt-1.5 flex flex-wrap gap-1">
-                {pr.product_code && <Badge>{pr.product_code}</Badge>}
-                {pr.line && <Badge>{pr.line}</Badge>}
-                {pr.eu_available && <Badge>EU</Badge>}
+      {products.map((pr) => {
+        const ids = partIdsByProduct.get(pr.id) ?? [];
+        const ownedCount = ids.filter((id) => ownedPartIds.has(id)).length;
+        const complete = ids.length > 0 && ownedCount === ids.length;
+        return (
+          <li
+            key={pr.id}
+            className={`card card-hover flex flex-col p-4 ${
+              complete ? "ring-1 ring-[var(--color-stamina)]/40" : ""
+            }`}
+          >
+            <div className="flex gap-3">
+              <Thumb
+                src={pr.image_url}
+                alt={pr.canonical_name}
+                className="h-24 w-24 shrink-0"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold leading-tight">{pr.canonical_name}</p>
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {authed && ownedCount > 0 && (
+                    <OwnedBadge>
+                      {complete ? "Compleet in bezit" : `${ownedCount}/${ids.length} in bezit`}
+                    </OwnedBadge>
+                  )}
+                  {pr.product_code && <Badge>{pr.product_code}</Badge>}
+                  {pr.line && <Badge>{pr.line}</Badge>}
+                  {pr.eu_available && <Badge>EU</Badge>}
+                </div>
               </div>
             </div>
-          </div>
-          <ul className="mt-3 space-y-0.5 text-xs text-[var(--color-muted)]">
-            {(contents.get(pr.id) ?? []).map((c, i) => (
-              <li key={i}>+ {c}</li>
-            ))}
-          </ul>
-          <div className="mt-3">
-            <AddButton
-              kind="product"
-              id={pr.id}
-              authed={authed}
-              label="Voeg toe aan collectie"
-            />
-          </div>
-        </li>
-      ))}
+            <ul className="mt-3 space-y-0.5 text-xs text-[var(--color-muted)]">
+              {(contents.get(pr.id) ?? []).map((c, i) => (
+                <li key={i}>+ {c}</li>
+              ))}
+            </ul>
+            <div className="mt-3">
+              <AddButton
+                kind="product"
+                id={pr.id}
+                authed={authed}
+                label="Voeg toe aan collectie"
+              />
+            </div>
+          </li>
+        );
+      })}
     </ul>
   );
 }
