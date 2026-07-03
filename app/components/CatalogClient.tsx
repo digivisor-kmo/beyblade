@@ -26,10 +26,10 @@ type Product = {
   image: string | null;
   contents: string[];
   partIds: string[];
+  isSet: boolean;
 };
 type Category = { id: string; name: string };
 
-const SET_KINDS = new Set(["deck_set", "random_booster", "customize_set"]);
 const LINES = ["BX", "UX", "CX"];
 const TYPES = [
   { v: "attack", l: "Attack" },
@@ -83,8 +83,7 @@ export function CatalogClient({
   const shownProducts = useMemo(
     () =>
       products.filter((pr) => {
-        const isSet = SET_KINDS.has(pr.kind);
-        if (tab === "sets" ? !isSet : isSet) return false;
+        if (tab === "sets" ? !pr.isSet : pr.isSet) return false;
         return (
           (!lijn || pr.line === lijn) &&
           (!eu || pr.eu) &&

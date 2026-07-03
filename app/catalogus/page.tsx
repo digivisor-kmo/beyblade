@@ -52,9 +52,13 @@ export default async function CatalogPage() {
     ]);
   });
 
+  // Een bey wordt gedefinieerd door precies 1 "hoofdblade". Meerdere ervan in
+  // een product = een set (deck set / multi-bey), anders een gewoon product.
+  const MAIN = new Set(["blade", "ratchet_integrated_blade", "main_blade", "metal_blade"]);
   const HERO = ["blade", "main_blade", "ratchet_integrated_blade", "metal_blade", "lock_chip"];
   const products = catalog.products.map((pr) => {
     const ids = idsByProduct.get(pr.id) ?? [];
+    const beyCount = ids.filter((id) => MAIN.has(partCat.get(id) ?? "")).length;
     let hero = pr.image_url;
     if (!hero) {
       for (const c of HERO) {
@@ -75,6 +79,7 @@ export default async function CatalogPage() {
       image: hero,
       contents: contents.get(pr.id) ?? [],
       partIds: ids,
+      isSet: beyCount >= 2,
     };
   });
 
