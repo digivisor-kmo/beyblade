@@ -31,7 +31,7 @@ export function CatalogFilters({
   const update = (patch: Partial<typeof current>) => {
     const next = { ...current, ...patch };
     const params = new URLSearchParams();
-    if (next.tab && next.tab !== "onderdelen") params.set("tab", next.tab);
+    if (next.tab && next.tab !== "producten") params.set("tab", next.tab);
     if (next.lijn) params.set("lijn", next.lijn);
     if (next.categorie) params.set("categorie", next.categorie);
     if (next.type) params.set("type", next.type);
@@ -48,8 +48,8 @@ export function CatalogFilters({
     <div className="space-y-3">
       <div className="inline-flex rounded-lg border border-[var(--color-border)] p-0.5 text-sm">
         {[
-          { v: "onderdelen", l: "Onderdelen" },
           { v: "producten", l: "Producten" },
+          { v: "onderdelen", l: "Onderdelen" },
         ].map((t) => (
           <button
             key={t.v}

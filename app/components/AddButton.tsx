@@ -21,7 +21,7 @@ export function AddButton({ kind, id, variantId, authed, label }: Props) {
     return (
       <Link
         href="/login"
-        className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-muted)] hover:text-[var(--color-text)]"
+        className="block w-full rounded-lg border border-[var(--color-border)] px-3 py-2 text-center text-xs text-[var(--color-muted)] hover:text-[var(--color-text)]"
       >
         Login om toe te voegen
       </Link>
@@ -43,15 +43,19 @@ export function AddButton({ kind, id, variantId, authed, label }: Props) {
     });
 
   return (
-    <div className="flex items-center gap-2">
+    <div>
       <button
         onClick={onClick}
         disabled={pending}
-        className="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60"
+        className={`w-full px-3 py-2 text-xs ${
+          done
+            ? "rounded-lg border border-[var(--color-stamina)] font-semibold text-[var(--color-stamina)]"
+            : "btn-primary"
+        }`}
       >
-        {pending ? "..." : done ? "Toegevoegd" : (label ?? "Toevoegen")}
+        {pending ? "Bezig..." : done ? "✓ Toegevoegd" : (label ?? "Toevoegen")}
       </button>
-      {error && <span className="text-xs text-red-400">{error}</span>}
+      {error && <span className="mt-1 block text-xs text-red-400">{error}</span>}
     </div>
   );
 }

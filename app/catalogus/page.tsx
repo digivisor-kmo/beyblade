@@ -1,24 +1,10 @@
-import { getCatalog } from "@/lib/catalog";
+import { getCatalog, type Catalog } from "@/lib/catalog";
 import { getUser } from "@/lib/auth";
 import { CatalogFilters } from "@/app/components/CatalogFilters";
 import { AddButton } from "@/app/components/AddButton";
+import { Badge, TypeBadge, Thumb } from "@/app/components/ui";
 
 type SP = { [key: string]: string | string[] | undefined };
-
-const TYPE_LABEL: Record<string, string> = {
-  attack: "Attack",
-  defense: "Defense",
-  stamina: "Stamina",
-  balance: "Balance",
-};
-
-function Badge({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="rounded border border-[var(--color-border)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--color-muted)]">
-      {children}
-    </span>
-  );
-}
 
 export default async function CatalogPage({
   searchParams,
@@ -28,24 +14,22 @@ export default async function CatalogPage({
   const sp = await searchParams;
   const str = (v: string | string[] | undefined) =>
     (Array.isArray(v) ? v[0] : v) ?? "";
-  const tab = str(sp.tab) || "onderdelen";
+  const tab = str(sp.tab) || "producten";
   const lijn = str(sp.lijn);
   const categorie = str(sp.categorie);
   const type = str(sp.type);
   const q = str(sp.q).toLowerCase();
   const eu = str(sp.eu) === "1";
 
-  // Gecachete catalogus + (gededupliceerde) auth-check parallel.
   const [catalog, user] = await Promise.all([getCatalog(), getUser()]);
   const authed = !!user;
-
   const catName = new Map(catalog.categories.map((c) => [c.id, c.name]));
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-8">
+    <main className="mx-auto max-w-5xl px-4 py-8">
       <h1 className="text-2xl font-bold">Catalogus</h1>
       <p className="mt-1 text-sm text-[var(--color-muted)]">
-        Bron: Beyblade Wiki (Fandom), CC-BY-SA.
+        Bekijk alle onderdelen en producten, en voeg toe aan je collectie.
       </p>
 
       <div className="mt-6">
@@ -57,13 +41,7 @@ export default async function CatalogPage({
 
       <div className="mt-6">
         {tab === "producten" ? (
-          <ProductList
-            catalog={catalog}
-            lijn={lijn}
-            q={q}
-            eu={eu}
-            authed={authed}
-          />
+          <ProductList catalog={catalog} lijn={lijn} q={q} eu={eu} authed={authed} />
         ) : (
           <PartList
             catalog={catalog}
@@ -80,6 +58,14 @@ export default async function CatalogPage({
   );
 }
 
+function Empty({ text }: { text: string }) {
+  return (
+    <div className="card p-10 text-center text-sm text-[var(--color-muted)]">
+      {text}
+    </div>
+  );
+}
+
 function PartList({
   catalog,
   lijn,
@@ -89,7 +75,7 @@ function PartList({
   authed,
   catName,
 }: {
-  catalog: import("@/lib/catalog").Catalog;
+  catalog: Catalog;
   lijn: string;
   categorie: string;
   type: string;
@@ -115,33 +101,29 @@ function PartList({
       (!q || p.canonical_name.toLowerCase().includes(q)),
   );
 
-  if (parts.length === 0) {
-    return (
-      <p className="text-sm text-[var(--color-muted)]">Geen onderdelen gevonden.</p>
-    );
-  }
+  if (parts.length === 0) return <Empty text="Geen onderdelen gevonden." />;
 
   return (
-    <ul className="grid gap-3 sm:grid-cols-2">
+    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       {parts.map((p) => (
-        <li
-          key={p.id}
-          className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
-        >
-          <p className="font-medium">{p.canonical_name}</p>
-          <div className="mt-1 flex flex-wrap gap-1">
-            <Badge>{catName.get(p.category) ?? p.category}</Badge>
-            <Badge>{p.line}</Badge>
-            {p.type && <Badge>{TYPE_LABEL[p.type]}</Badge>}
-            {(variantCount.get(p.id) ?? 0) > 1 && (
-              <Badge>{variantCount.get(p.id)} kleuren</Badge>
+        <li key={p.id} className="card card-hover flex flex-col p-3">
+          <Thumb src={p.image_url} alt={p.canonical_name} className="aspect-square" />
+          <div className="mt-2 flex-1">
+            <p className="font-semibold leading-tight">{p.canonical_name}</p>
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              <Badge>{catName.get(p.category) ?? p.category}</Badge>
+              <Badge>{p.line}</Badge>
+              <TypeBadge type={p.type} />
+              {(variantCount.get(p.id) ?? 0) > 1 && (
+                <Badge>{variantCount.get(p.id)} kleuren</Badge>
+              )}
+            </div>
+            {aliasMap.get(p.id) && (
+              <p className="mt-1.5 text-xs text-[var(--color-muted)]">
+                Hasbro: {aliasMap.get(p.id)!.join(", ")}
+              </p>
             )}
           </div>
-          {aliasMap.get(p.id) && (
-            <p className="mt-1 text-xs text-[var(--color-muted)]">
-              Hasbro: {aliasMap.get(p.id)!.join(", ")}
-            </p>
-          )}
           <div className="mt-3">
             <AddButton kind="part" id={p.id} authed={authed} />
           </div>
@@ -158,7 +140,7 @@ function ProductList({
   eu,
   authed,
 }: {
-  catalog: import("@/lib/catalog").Catalog;
+  catalog: Catalog;
   lijn: string;
   q: string;
   eu: boolean;
@@ -181,29 +163,28 @@ function ProductList({
       (!q || pr.canonical_name.toLowerCase().includes(q)),
   );
 
-  if (products.length === 0) {
-    return (
-      <p className="text-sm text-[var(--color-muted)]">Geen producten gevonden.</p>
-    );
-  }
+  if (products.length === 0) return <Empty text="Geen producten gevonden." />;
 
   return (
-    <ul className="grid gap-3 sm:grid-cols-2">
+    <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {products.map((pr) => (
-        <li
-          key={pr.id}
-          className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
-        >
-          <div className="flex items-center gap-2">
-            <p className="font-medium">{pr.canonical_name}</p>
-            {pr.eu_available && <Badge>EU</Badge>}
+        <li key={pr.id} className="card card-hover flex flex-col p-4">
+          <div className="flex gap-3">
+            <Thumb
+              src={pr.image_url}
+              alt={pr.canonical_name}
+              className="h-24 w-24 shrink-0"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold leading-tight">{pr.canonical_name}</p>
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {pr.product_code && <Badge>{pr.product_code}</Badge>}
+                {pr.line && <Badge>{pr.line}</Badge>}
+                {pr.eu_available && <Badge>EU</Badge>}
+              </div>
+            </div>
           </div>
-          <div className="mt-1 flex flex-wrap gap-1">
-            {pr.product_code && <Badge>{pr.product_code}</Badge>}
-            {pr.line && <Badge>{pr.line}</Badge>}
-            <Badge>{pr.kind}</Badge>
-          </div>
-          <ul className="mt-2 text-xs text-[var(--color-muted)]">
+          <ul className="mt-3 space-y-0.5 text-xs text-[var(--color-muted)]">
             {(contents.get(pr.id) ?? []).map((c, i) => (
               <li key={i}>+ {c}</li>
             ))}
@@ -213,7 +194,7 @@ function ProductList({
               kind="product"
               id={pr.id}
               authed={authed}
-              label="Voeg product toe"
+              label="Voeg toe aan collectie"
             />
           </div>
         </li>

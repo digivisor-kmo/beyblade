@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
 import { getCatalog } from "@/lib/catalog";
 import { QuantityControls } from "@/app/components/QuantityControls";
+import { Thumb } from "@/app/components/ui";
 
 const TYPE_LABEL: Record<string, string> = {
   attack: "Attack",
@@ -17,7 +18,6 @@ export default async function CollectionPage() {
   if (!user) redirect("/login");
 
   const supabase = await createClient();
-  // Alleen de eigen collectie via de sessie-client; lookups uit de cache.
   const [{ data: owned }, catalog] = await Promise.all([
     supabase
       .from("owned_parts")
@@ -41,6 +41,7 @@ export default async function CollectionPage() {
         category: part.category,
         line: part.line,
         type: part.type as string | null,
+        image: part.image_url,
         colorway: o.variant_id ? variantName.get(o.variant_id) : null,
       };
     })
@@ -48,7 +49,6 @@ export default async function CollectionPage() {
 
   const totalDistinct = rows.length;
   const totalQty = rows.reduce((s, r) => s + r.quantity, 0);
-
   const byCategory = new Map<string, number>();
   const byLine = new Map<string, number>();
   const byType = new Map<string, number>();
@@ -58,8 +58,7 @@ export default async function CollectionPage() {
     if (r.type) byType.set(r.type, (byType.get(r.type) ?? 0) + r.quantity);
   });
 
-  // Groepeer per categorie in sort-volgorde.
-  const grouped = (categories ?? [])
+  const grouped = categories
     .map((c) => ({ cat: c, items: rows.filter((r) => r.category === c.id) }))
     .filter((g) => g.items.length > 0);
 
@@ -68,30 +67,37 @@ export default async function CollectionPage() {
       <h1 className="text-2xl font-bold">Mijn collectie</h1>
 
       {totalDistinct === 0 ? (
-        <div className="mt-6 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6 text-sm text-[var(--color-muted)]">
-          <p>Je collectie is nog leeg.</p>
+        <div className="card mt-6 p-10 text-center">
+          <p className="text-4xl">🌀</p>
+          <p className="mt-3 font-semibold">Je collectie is nog leeg</p>
+          <p className="mt-1 text-sm text-[var(--color-muted)]">
+            Voeg je eerste beys toe vanuit de catalogus.
+          </p>
           <Link
             href="/catalogus"
-            className="mt-2 inline-block text-[var(--color-accent)]"
+            className="btn-primary mt-5 inline-block px-5 py-2.5 text-sm"
           >
-            Naar de catalogus om onderdelen toe te voegen
+            Naar de catalogus
           </Link>
         </div>
       ) : (
         <>
           <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label="Verschillende onderdelen" value={totalDistinct} />
+            <Stat label="Onderdelen" value={totalDistinct} />
             <Stat label="Totaal aantal" value={totalQty} />
             <Stat
               label="Per lijn"
-              value={[...byLine.entries()].map(([k, v]) => `${k}: ${v}`).join("  ")}
+              value={
+                [...byLine.entries()].map(([k, v]) => `${k} ${v}`).join(" · ") ||
+                "-"
+              }
             />
             <Stat
               label="Per type"
               value={
                 [...byType.entries()]
-                  .map(([k, v]) => `${TYPE_LABEL[k] ?? k}: ${v}`)
-                  .join("  ") || "-"
+                  .map(([k, v]) => `${TYPE_LABEL[k] ?? k} ${v}`)
+                  .join(" · ") || "-"
               }
             />
           </section>
@@ -99,17 +105,25 @@ export default async function CollectionPage() {
           <div className="mt-8 space-y-6">
             {grouped.map((g) => (
               <section key={g.cat.id}>
-                <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--color-muted)]">
-                  {g.cat.name} ({byCategory.get(g.cat.id)})
+                <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                  {g.cat.name}
+                  <span className="text-xs font-normal text-[var(--color-muted)]">
+                    {byCategory.get(g.cat.id)}
+                  </span>
                 </h2>
-                <ul className="divide-y divide-[var(--color-border)] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
+                <ul className="space-y-2">
                   {g.items.map((r) => (
                     <li
                       key={r.id}
-                      className="flex items-center justify-between gap-3 px-4 py-2.5"
+                      className="card flex items-center gap-3 p-2.5"
                     >
-                      <div>
-                        <p className="text-sm font-medium">{r.name}</p>
+                      <Thumb
+                        src={r.image}
+                        alt={r.name}
+                        className="h-14 w-14 shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold">{r.name}</p>
                         <p className="text-xs text-[var(--color-muted)]">
                           {r.line}
                           {r.colorway ? ` · ${r.colorway}` : ""}
@@ -131,7 +145,7 @@ export default async function CollectionPage() {
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+    <div className="card p-3">
       <p className="text-xs text-[var(--color-muted)]">{label}</p>
       <p className="mt-1 text-sm font-semibold">{value}</p>
     </div>

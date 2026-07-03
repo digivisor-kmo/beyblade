@@ -17,11 +17,15 @@ async function fetchCatalog() {
         .order("sort_order"),
       supabase
         .from("parts")
-        .select("id, canonical_name, category, line, type, spin_direction")
+        .select(
+          "id, canonical_name, category, line, type, spin_direction, image_url",
+        )
         .order("canonical_name"),
       supabase
         .from("products")
-        .select("id, canonical_name, product_code, brand, kind, line, eu_available")
+        .select(
+          "id, canonical_name, product_code, brand, kind, line, eu_available, image_url",
+        )
         .order("product_code"),
       supabase
         .from("product_parts")
