@@ -1,4 +1,4 @@
--- Gecombineerde migraties. Volgorde: 0001 -> 0022.
+-- Gecombineerde migraties. Volgorde: 0001 -> 0023.
 
 -- ============ 0001_extensions_and_enums.sql ============
 -- 0001_extensions_and_enums.sql
@@ -1734,5 +1734,28 @@ from parts join (values
   ('44444444-0000-4000-8000-000000000211','Free Ball','bit')
 ) as p(pid, cname, cat) on parts.canonical_name = p.cname and parts.category = p.cat
 on conflict on constraint product_parts_uniq do nothing;
+
+
+-- ============ 0023_meta_public_read.sql ============
+-- 0023_meta_public_read.sql
+-- Sta anon toe om de eigenaarloze competitieve combo's te lezen, zodat we ze
+-- met de publieke (cookieloze) client kunnen cachen. Gebruikers-builds blijven
+-- privé (die policies zijn 'to authenticated' en alleen eigen rijen).
+
+grant select on builds to anon;
+grant select on build_parts to anon;
+
+create policy "meta builds readable by anon" on builds
+  for select to anon
+  using (user_id is null and kind = 'competitive');
+
+create policy "meta build_parts readable by anon" on build_parts
+  for select to anon
+  using (
+    exists (
+      select 1 from builds b
+      where b.id = build_parts.build_id and b.user_id is null
+    )
+  );
 
 

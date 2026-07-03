@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
 import { getCatalog } from "@/lib/catalog";
+import { getMetaCombos } from "@/lib/meta";
 import { Thumb, TypeBadge, Badge } from "@/app/components/ui";
 
 type PartInfo = { name: string; image: string | null; category: string };
@@ -12,18 +13,12 @@ export default async function MetaPage() {
   if (!user) redirect("/login");
 
   const supabase = await createClient();
-  const [{ data: builds }, { data: buildParts }, { data: owned }, catalog] =
-    await Promise.all([
-      supabase
-        .from("builds")
-        .select("id, name, template_id, source, notes, meta_date")
-        .is("user_id", null)
-        .eq("kind", "competitive")
-        .order("meta_date", { ascending: false }),
-      supabase.from("build_parts").select("build_id, part_id"),
-      supabase.from("owned_parts").select("part_id"),
-      getCatalog(),
-    ]);
+  // Gecachete combo's + gecachete catalogus + 1 query voor de eigen collectie.
+  const [combosRaw, { data: owned }, catalog] = await Promise.all([
+    getMetaCombos(),
+    supabase.from("owned_parts").select("part_id"),
+    getCatalog(),
+  ]);
 
   const partInfo = new Map<string, PartInfo>(
     catalog.parts.map((p) => [
@@ -33,17 +28,8 @@ export default async function MetaPage() {
   );
   const ownedIds = new Set((owned ?? []).map((o) => o.part_id));
 
-  const partsByBuild = new Map<string, string[]>();
-  (buildParts ?? []).forEach((bp) => {
-    partsByBuild.set(bp.build_id, [
-      ...(partsByBuild.get(bp.build_id) ?? []),
-      bp.part_id,
-    ]);
-  });
-
-  const combos = (builds ?? []).map((b) => {
-    const ids = partsByBuild.get(b.id) ?? [];
-    const parts = ids.map((id) => ({
+  const combos = combosRaw.map((b) => {
+    const parts = b.partIds.map((id) => ({
       id,
       owned: ownedIds.has(id),
       ...(partInfo.get(id) ?? { name: "?", image: null, category: "" }),

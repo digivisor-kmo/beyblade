@@ -1,294 +1,90 @@
 import { createClient } from "@/lib/supabase/server";
-import { getCatalog, type Catalog } from "@/lib/catalog";
+import { getCatalog } from "@/lib/catalog";
 import { getUser } from "@/lib/auth";
-import { CatalogFilters } from "@/app/components/CatalogFilters";
-import { AddToCollection } from "@/app/components/AddToCollection";
-import { Badge, TypeBadge, Thumb } from "@/app/components/ui";
+import { CatalogClient } from "@/app/components/CatalogClient";
 
-type SP = { [key: string]: string | string[] | undefined };
-
-function OwnedBadge({ children }: { children: React.ReactNode }) {
-  return (
-    <span
-      className="rounded-full border px-2 py-0.5 text-[11px] font-semibold"
-      style={{
-        color: "var(--color-stamina)",
-        borderColor: "var(--color-stamina)",
-        backgroundColor:
-          "color-mix(in srgb, var(--color-stamina) 14%, transparent)",
-      }}
-    >
-      {children}
-    </span>
-  );
-}
-
-export default async function CatalogPage({
-  searchParams,
-}: {
-  searchParams: Promise<SP>;
-}) {
-  const sp = await searchParams;
-  const str = (v: string | string[] | undefined) =>
-    (Array.isArray(v) ? v[0] : v) ?? "";
-  const tab = str(sp.tab) || "producten";
-  const lijn = str(sp.lijn);
-  const categorie = str(sp.categorie);
-  const type = str(sp.type);
-  const q = str(sp.q).toLowerCase();
-  const eu = str(sp.eu) === "1";
-
+export default async function CatalogPage() {
   const [catalog, user] = await Promise.all([getCatalog(), getUser()]);
-  const authed = !!user;
 
-  // Welke onderdelen bezit de gebruiker (voor de "in bezit"-aanduiding).
-  let ownedPartIds = new Set<string>();
-  if (authed) {
+  // Eén keer de eigen part-ids ophalen (voor de "in bezit"-status).
+  let owned: string[] = [];
+  if (user) {
     const supabase = await createClient();
-    const { data: owned } = await supabase.from("owned_parts").select("part_id");
-    ownedPartIds = new Set((owned ?? []).map((o) => o.part_id));
+    const { data } = await supabase.from("owned_parts").select("part_id");
+    owned = [...new Set((data ?? []).map((o) => o.part_id))];
   }
 
   const catName = new Map(catalog.categories.map((c) => [c.id, c.name]));
-
-  return (
-    <main className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="font-display text-2xl font-extrabold tracking-wide">
-        Catalogus
-      </h1>
-      <p className="mt-1 text-sm text-[var(--color-muted)]">
-        Bekijk alle onderdelen en producten, en voeg toe aan je collectie.
-      </p>
-
-      <div className="mt-6">
-        <CatalogFilters
-          categories={catalog.categories}
-          current={{ tab, lijn, categorie, type, q, eu }}
-        />
-      </div>
-
-      <div className="mt-6">
-        {tab === "producten" ? (
-          <ProductList
-            catalog={catalog}
-            lijn={lijn}
-            q={q}
-            eu={eu}
-            authed={authed}
-            ownedPartIds={ownedPartIds}
-          />
-        ) : (
-          <PartList
-            catalog={catalog}
-            lijn={lijn}
-            categorie={categorie}
-            type={type}
-            q={q}
-            authed={authed}
-            ownedPartIds={ownedPartIds}
-            catName={catName}
-          />
-        )}
-      </div>
-    </main>
-  );
-}
-
-function Empty({ text }: { text: string }) {
-  return (
-    <div className="card p-10 text-center text-sm text-[var(--color-muted)]">
-      {text}
-    </div>
-  );
-}
-
-function PartList({
-  catalog,
-  lijn,
-  categorie,
-  type,
-  q,
-  authed,
-  ownedPartIds,
-  catName,
-}: {
-  catalog: Catalog;
-  lijn: string;
-  categorie: string;
-  type: string;
-  q: string;
-  authed: boolean;
-  ownedPartIds: Set<string>;
-  catName: Map<string, string>;
-}) {
   const variantCount = new Map<string, number>();
   catalog.variants.forEach((v) =>
     variantCount.set(v.part_id, (variantCount.get(v.part_id) ?? 0) + 1),
   );
 
-  const parts = catalog.parts.filter(
-    (p) =>
-      (!lijn || p.line === lijn) &&
-      (!categorie || p.category === categorie) &&
-      (!type || p.type === type) &&
-      (!q ||
-        p.display_name.toLowerCase().includes(q) ||
-        p.canonical_name.toLowerCase().includes(q)),
-  );
+  const parts = catalog.parts.map((p) => ({
+    id: p.id,
+    name: p.display_name,
+    tt: p.hasbro_name && p.hasbro_name !== p.canonical_name ? p.canonical_name : null,
+    image: p.image_url,
+    category: p.category,
+    categoryName: catName.get(p.category) ?? p.category,
+    line: p.line,
+    type: p.type,
+    colors: variantCount.get(p.id) ?? 0,
+  }));
 
-  if (parts.length === 0) return <Empty text="Geen onderdelen gevonden." />;
-
-  return (
-    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-      {parts.map((p) => {
-        const owned = ownedPartIds.has(p.id);
-        return (
-          <li
-            key={p.id}
-            className={`card card-hover flex flex-col p-3 ${
-              owned ? "ring-1 ring-[var(--color-stamina)]/40" : ""
-            }`}
-          >
-            <Thumb src={p.image_url} alt={p.display_name} className="aspect-square" />
-            <div className="mt-2 flex-1">
-              <p className="font-semibold leading-tight">{p.display_name}</p>
-              {p.hasbro_name && p.hasbro_name !== p.canonical_name && (
-                <p className="text-xs text-[var(--color-muted)]">
-                  TT: {p.canonical_name}
-                </p>
-              )}
-              <div className="mt-1.5 flex flex-wrap gap-1">
-                {owned && <OwnedBadge>In bezit</OwnedBadge>}
-                <Badge>{catName.get(p.category) ?? p.category}</Badge>
-                <Badge>{p.line}</Badge>
-                <TypeBadge type={p.type} />
-                {(variantCount.get(p.id) ?? 0) > 1 && (
-                  <Badge>{variantCount.get(p.id)} kleuren</Badge>
-                )}
-              </div>
-            </div>
-            <div className="mt-3">
-              <AddToCollection kind="part" id={p.id} authed={authed} />
-            </div>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-function ProductList({
-  catalog,
-  lijn,
-  q,
-  eu,
-  authed,
-  ownedPartIds,
-}: {
-  catalog: Catalog;
-  lijn: string;
-  q: string;
-  eu: boolean;
-  authed: boolean;
-  ownedPartIds: Set<string>;
-}) {
   const partName = new Map(catalog.parts.map((p) => [p.id, p.display_name]));
   const partImg = new Map(catalog.parts.map((p) => [p.id, p.image_url]));
   const partCat = new Map(catalog.parts.map((p) => [p.id, p.category]));
   const variantName = new Map(catalog.variants.map((v) => [v.id, v.colorway]));
-  // Volgorde van "hero"-onderdeel voor een product-thumbnail zonder eigen foto.
-  const HERO = [
-    "blade",
-    "main_blade",
-    "ratchet_integrated_blade",
-    "metal_blade",
-    "lock_chip",
-  ];
+
   const contents = new Map<string, string[]>();
-  const partIdsByProduct = new Map<string, string[]>();
+  const idsByProduct = new Map<string, string[]>();
   catalog.productParts.forEach((row) => {
-    const name = partName.get(row.part_id) ?? "?";
+    const nm = partName.get(row.part_id) ?? "?";
     const color = row.variant_id ? variantName.get(row.variant_id) : null;
-    const label = color ? `${name} (${color})` : name;
-    contents.set(row.product_id, [...(contents.get(row.product_id) ?? []), label]);
-    partIdsByProduct.set(row.product_id, [
-      ...(partIdsByProduct.get(row.product_id) ?? []),
+    contents.set(row.product_id, [
+      ...(contents.get(row.product_id) ?? []),
+      color ? `${nm} (${color})` : nm,
+    ]);
+    idsByProduct.set(row.product_id, [
+      ...(idsByProduct.get(row.product_id) ?? []),
       row.part_id,
     ]);
   });
-  const heroImage = (productId: string, own: string | null) => {
-    if (own) return own;
-    const ids = partIdsByProduct.get(productId) ?? [];
-    for (const cat of HERO) {
-      const hit = ids.find((id) => partCat.get(id) === cat && partImg.get(id));
-      if (hit) return partImg.get(hit) ?? null;
+
+  const HERO = ["blade", "main_blade", "ratchet_integrated_blade", "metal_blade", "lock_chip"];
+  const products = catalog.products.map((pr) => {
+    const ids = idsByProduct.get(pr.id) ?? [];
+    let hero = pr.image_url;
+    if (!hero) {
+      for (const c of HERO) {
+        const hit = ids.find((id) => partCat.get(id) === c && partImg.get(id));
+        if (hit) {
+          hero = partImg.get(hit) ?? null;
+          break;
+        }
+      }
     }
-    return null;
-  };
-
-  const products = catalog.products.filter(
-    (pr) =>
-      (!lijn || pr.line === lijn) &&
-      (!eu || pr.eu_available) &&
-      (!q ||
-        (pr.hasbro_name ?? "").toLowerCase().includes(q) ||
-        pr.canonical_name.toLowerCase().includes(q)),
-  );
-
-  if (products.length === 0) return <Empty text="Geen producten gevonden." />;
+    return {
+      id: pr.id,
+      name: pr.hasbro_name ?? pr.canonical_name,
+      code: pr.product_code,
+      line: pr.line,
+      eu: pr.eu_available,
+      kind: pr.kind,
+      image: hero,
+      contents: contents.get(pr.id) ?? [],
+      partIds: ids,
+    };
+  });
 
   return (
-    <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {products.map((pr) => {
-        const ids = partIdsByProduct.get(pr.id) ?? [];
-        const ownedCount = ids.filter((id) => ownedPartIds.has(id)).length;
-        const complete = ids.length > 0 && ownedCount === ids.length;
-        return (
-          <li
-            key={pr.id}
-            className={`card card-hover flex flex-col p-4 ${
-              complete ? "ring-1 ring-[var(--color-stamina)]/40" : ""
-            }`}
-          >
-            <div className="flex gap-3">
-              <Thumb
-                src={heroImage(pr.id, pr.image_url)}
-                alt={pr.canonical_name}
-                width={200}
-                className="h-24 w-24 shrink-0"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold leading-tight">
-                  {pr.hasbro_name ?? pr.canonical_name}
-                </p>
-                <div className="mt-1.5 flex flex-wrap gap-1">
-                  {authed && ownedCount > 0 && (
-                    <OwnedBadge>
-                      {complete ? "Compleet in bezit" : `${ownedCount}/${ids.length} in bezit`}
-                    </OwnedBadge>
-                  )}
-                  {pr.product_code && <Badge>{pr.product_code}</Badge>}
-                  {pr.line && <Badge>{pr.line}</Badge>}
-                  {pr.eu_available && <Badge>EU</Badge>}
-                </div>
-              </div>
-            </div>
-            <ul className="mt-3 space-y-0.5 text-xs text-[var(--color-muted)]">
-              {(contents.get(pr.id) ?? []).map((c, i) => (
-                <li key={i}>+ {c}</li>
-              ))}
-            </ul>
-            <div className="mt-3">
-              <AddToCollection
-                kind="product"
-                id={pr.id}
-                authed={authed}
-                label="Voeg toe aan collectie"
-              />
-            </div>
-          </li>
-        );
-      })}
-    </ul>
+    <CatalogClient
+      parts={parts}
+      products={products}
+      categories={catalog.categories.map((c) => ({ id: c.id, name: c.name }))}
+      authed={!!user}
+      owned={owned}
+    />
   );
 }
