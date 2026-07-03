@@ -129,7 +129,9 @@ function PartList({
       (!lijn || p.line === lijn) &&
       (!categorie || p.category === categorie) &&
       (!type || p.type === type) &&
-      (!q || p.canonical_name.toLowerCase().includes(q)),
+      (!q ||
+        p.display_name.toLowerCase().includes(q) ||
+        p.canonical_name.toLowerCase().includes(q)),
   );
 
   if (parts.length === 0) return <Empty text="Geen onderdelen gevonden." />;
@@ -207,7 +209,9 @@ function ProductList({
     (pr) =>
       (!lijn || pr.line === lijn) &&
       (!eu || pr.eu_available) &&
-      (!q || pr.canonical_name.toLowerCase().includes(q)),
+      (!q ||
+        (pr.hasbro_name ?? "").toLowerCase().includes(q) ||
+        pr.canonical_name.toLowerCase().includes(q)),
   );
 
   if (products.length === 0) return <Empty text="Geen producten gevonden." />;
